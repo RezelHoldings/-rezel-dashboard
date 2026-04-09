@@ -186,15 +186,17 @@
 </head>
 <body>
 
-<!-- Password Gate -->
+<!-- Password + Name Gate -->
 <div id="passwordGate" style="display:none;position:fixed;inset:0;background:#f4f5f7;z-index:9999;align-items:center;justify-content:center;">
-  <div style="background:#fff;border-radius:14px;padding:36px 40px;width:360px;box-shadow:0 8px 40px rgba(9,30,66,0.18);text-align:center;">
+  <div style="background:#fff;border-radius:14px;padding:36px 40px;width:380px;box-shadow:0 8px 40px rgba(9,30,66,0.18);text-align:center;">
     <div style="font-size:32px;margin-bottom:12px;">🔒</div>
     <h2 style="font-size:20px;font-weight:700;margin-bottom:6px;color:#172b4d">Rezel Dashboard</h2>
     <p style="font-size:13px;color:#6b778c;margin-bottom:20px">Enter the password to continue</p>
+    <input type="text" id="nameInput" placeholder="Your name" onkeydown="if(event.key==='Enter')document.getElementById('pwInput').focus()"
+      style="width:100%;padding:10px 14px;border:1.5px solid #dfe1e6;border-radius:8px;font-size:15px;outline:none;margin-bottom:10px;text-align:center;">
     <input type="password" id="pwInput" placeholder="Password" onkeydown="if(event.key==='Enter')checkPassword()"
       style="width:100%;padding:10px 14px;border:1.5px solid #dfe1e6;border-radius:8px;font-size:15px;outline:none;margin-bottom:10px;text-align:center;letter-spacing:2px;">
-    <div id="pwError" style="color:#de350b;font-size:12px;margin-bottom:10px;display:none;">Incorrect password. Try again.</div>
+    <div id="pwError" style="color:#de350b;font-size:12px;margin-bottom:10px;display:none;"></div>
     <button onclick="checkPassword()" style="width:100%;padding:10px;background:#5e6ad2;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;">Enter</button>
   </div>
 </div>
@@ -203,24 +205,26 @@
   (function() {
     const PASS = 'rezel123';
     const KEY  = 'rezel_auth';
+    const NAME_KEY = 'rezel_username';
     function checkPassword() {
-      const val = document.getElementById('pwInput').value;
-      if (val === PASS) {
-        sessionStorage.setItem(KEY, '1');
-        document.getElementById('passwordGate').style.display = 'none';
-        document.body.style.overflow = '';
-      } else {
-        document.getElementById('pwError').style.display = 'block';
-        document.getElementById('pwInput').value = '';
-        document.getElementById('pwInput').focus();
-      }
+      const name = document.getElementById('nameInput').value.trim();
+      const val  = document.getElementById('pwInput').value;
+      const err  = document.getElementById('pwError');
+      if (!name) { err.textContent = 'Please enter your name.'; err.style.display='block'; document.getElementById('nameInput').focus(); return; }
+      if (val !== PASS) { err.textContent = 'Incorrect password. Try again.'; err.style.display='block'; document.getElementById('pwInput').value=''; document.getElementById('pwInput').focus(); return; }
+      sessionStorage.setItem(KEY, '1');
+      localStorage.setItem(NAME_KEY, name);
+      document.getElementById('passwordGate').style.display = 'none';
+      document.body.style.overflow = '';
     }
     window.checkPassword = checkPassword;
     if (!sessionStorage.getItem(KEY)) {
       document.addEventListener('DOMContentLoaded', function() {
+        const saved = localStorage.getItem(NAME_KEY);
+        if (saved) document.getElementById('nameInput').value = saved;
         document.getElementById('passwordGate').style.display = 'flex';
         document.body.style.overflow = 'hidden';
-        setTimeout(() => document.getElementById('pwInput').focus(), 100);
+        setTimeout(() => document.getElementById(saved ? 'pwInput' : 'nameInput').focus(), 100);
       });
     }
   })();
@@ -692,6 +696,7 @@
         <td class="ts-cell" title="${tsFull(t.updatedAt)}">
           <div><span class="ts-label">Upd </span>${tsShort(t.updatedAt)}</div>
           <div><span class="ts-label">Cre </span>${tsShort(t.createdAt)}</div>
+          ${t.createdBy ? `<div><span class="ts-label">By </span>${esc(t.createdBy)}</div>` : ''}
         </td>
         <td class="notes-cell" title="${esc(t.notes||'')}">${esc(t.notes||'')}</td>
         <td style="white-space:nowrap">
@@ -867,6 +872,7 @@
       notes:    document.getElementById('f-notes').value.trim(),
     };
     const now = new Date().toISOString();
+    const currentUser = localStorage.getItem('rezel_username') || '';
     let taskObj;
     if (editingId) {
       const t = tasks.find(t=>t.id===editingId);
@@ -891,7 +897,7 @@
         await apiCall('update', { task: t });
       }
     } else {
-      taskObj = { id:uid(), createdAt:now, updatedAt:now, log:[], files:pendingFiles, ...data };
+      taskObj = { id:uid(), createdAt:now, updatedAt:now, createdBy:currentUser, log:[], files:pendingFiles, ...data };
       addLog(taskObj,'create','Task created');
       pendingFiles.forEach(f => addLog(taskObj,'file',`Attached "${f.name}"`));
       tasks.push(taskObj);
