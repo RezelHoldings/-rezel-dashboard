@@ -567,19 +567,23 @@
   function todayStr() { return new Date().toISOString().slice(0,10); }
   function dueClass(d) {
     if (!d) return '';
-    if (d < todayStr()) return 'due-overdue';
-    if (d === todayStr()) return 'due-today';
-    if ((new Date(d) - new Date(todayStr())) / 86400000 <= 3) return 'due-soon';
+    const plain = d.slice(0, 10);
+    if (plain < todayStr()) return 'due-overdue';
+    if (plain === todayStr()) return 'due-today';
+    if ((new Date(plain) - new Date(todayStr())) / 86400000 <= 3) return 'due-soon';
     return '';
   }
   function fmt(d) {
     if (!d) return '—';
+    // Normalize: strip time portion if ISO string like 2026-04-09T07:00:00.000Z
+    const plain = d.slice(0, 10);
     const today = todayStr();
     const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1);
     const tomorrowStr = tomorrow.toISOString().slice(0,10);
-    if (d === today) return 'Today';
-    if (d === tomorrowStr) return 'Tomorrow';
-    const dt = new Date(d + 'T12:00:00');
+    if (plain === today) return 'Today';
+    if (plain === tomorrowStr) return 'Tomorrow';
+    const dt = new Date(plain + 'T12:00:00');
+    if (isNaN(dt)) return '—';
     return dt.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
   }
   function tsShort(iso) {
