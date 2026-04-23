@@ -435,9 +435,15 @@
         <option value="done">Done</option>
       </select>
     </div>
+    <!-- Timestamped Notes -->
     <div class="form-row">
       <label>Notes</label>
-      <textarea id="f-notes" placeholder="Any additional context…"></textarea>
+      <div id="notesLog" style="max-height:140px;overflow-y:auto;border:1px solid #dfe1e6;border-radius:6px;padding:8px 10px;margin-bottom:8px;background:#f8f9fa;display:none;font-size:13px;"></div>
+      <div style="display:flex;gap:8px;align-items:flex-start">
+        <textarea id="f-notes" placeholder="Add a note…" style="flex:1;min-height:52px;resize:vertical"></textarea>
+        <button type="button" onclick="addNoteEntry()" class="btn btn-ghost btn-sm" style="white-space:nowrap;margin-top:2px">+ Add</button>
+      </div>
+      <p style="font-size:11px;color:#97a0af;margin-top:4px">Each note is timestamped with your name.</p>
     </div>
 
     <!-- File Upload -->
@@ -702,7 +708,7 @@
           <div><span class="ts-label">Cre </span>${tsShort(t.createdAt)}</div>
           ${t.createdBy ? `<div><span class="ts-label">By </span>${esc(t.createdBy)}</div>` : ''}
         </td>
-        <td class="notes-cell" title="${esc(t.notes||'')}">${esc(t.notes||'')}</td>
+        <td class="notes-cell" title="${notesPreview(t.notes, true)}">${esc(notesPreview(t.notes))}</td>
         <td style="white-space:nowrap">
           <button class="btn-icon" onclick="editTask('${t.id}')" title="Edit">✎</button>
           <button class="btn-icon" onclick="openLog('${t.id}')" title="Activity log">🕐</button>
@@ -755,7 +761,8 @@
     document.getElementById('f-due').value = t.due||'';
     document.getElementById('f-priority').value = t.priority;
     document.getElementById('f-status').value = t.status;
-    document.getElementById('f-notes').value = t.notes||'';
+    document.getElementById('f-notes').value = '';
+    renderNotesLog(t.notes);
     document.getElementById('modalTitle').textContent = 'Edit Task';
     renderPendingFiles();
     document.getElementById('modalOverlay').classList.add('open');
@@ -883,6 +890,7 @@
     document.getElementById('f-priority').value='medium';
     document.getElementById('f-status').value='pending';
     document.getElementById('f-notes').value='';
+    renderNotesLog([]);
     document.getElementById('modalTitle').textContent='Add Task';
     renderPendingFiles();
     document.getElementById('modalOverlay').classList.add('open');
@@ -906,6 +914,11 @@
     };
     const now = new Date().toISOString();
     const currentUser = localStorage.getItem('rezel_username') || '';
+    // Collect any unsaved note in the textarea
+    const pendingNote = document.getElementById('f-notes').value.trim();
+    if (pendingNote) addNoteEntry();
+    data.notes = getPendingNotes();
+
     let taskObj;
     if (editingId) {
       const t = tasks.find(t=>t.id===editingId);
@@ -917,7 +930,6 @@
         if (t.due!==data.due) changes.push('due date');
         if (t.priority!==data.priority) changes.push('priority');
         if (t.status!==data.status) changes.push('status');
-        if (t.notes!==data.notes) changes.push('notes');
         Object.assign(t, data);
         t.files = pendingFiles;
         if (changes.length) addLog(t,'edit',`Updated: ${changes.join(', ')}`);
@@ -1086,6 +1098,47 @@
     document.getElementById('quoteText').textContent = q;
     document.getElementById('quoteText').classList.remove('quote-loading');
     document.getElementById('quoteAuthor').textContent = a ? '— ' + a : '';
+  }
+
+  // ── Timestamped Notes ──────────────────────────────────────
+  let _pendingNotes = [];
+
+  function getPendingNotes() { return _pendingNotes; }
+
+  function renderNotesLog(notes) {
+    _pendingNotes = Array.isArray(notes) ? [...notes]
+      : (notes && typeof notes === 'string' && notes.trim())
+        ? [{ text: notes, ts: null, author: '' }]  // legacy string note
+        : [];
+    const el = document.getElementById('notesLog');
+    if (!_pendingNotes.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
+    el.style.display = 'block';
+    el.innerHTML = _pendingNotes.map((n, i) => `
+      <div style="border-bottom:1px solid #dfe1e6;padding:6px 0;last-child:border:none">
+        <div style="font-size:11px;color:#97a0af;margin-bottom:2px">
+          ${n.ts ? tsFull(n.ts) : ''}${n.author ? ' · ' + esc(n.author) : ''}
+        </div>
+        <div style="color:#172b4d">${esc(n.text)}</div>
+      </div>`).join('');
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function addNoteEntry() {
+    const val = document.getElementById('f-notes').value.trim();
+    if (!val) return;
+    const author = localStorage.getItem('rezel_username') || '';
+    _pendingNotes.push({ text: val, ts: new Date().toISOString(), author });
+    document.getElementById('f-notes').value = '';
+    renderNotesLog(_pendingNotes);
+  }
+
+  function notesPreview(notes, full = false) {
+    if (!notes || !notes.length) return '';
+    if (typeof notes === 'string') return notes;
+    const last = notes[notes.length - 1];
+    return full
+      ? notes.map(n => `[${n.ts ? tsFull(n.ts) : ''}${n.author ? ' · ' + n.author : ''}] ${n.text}`).join('\n')
+      : last.text;
   }
 
   // ── Settings Modal ─────────────────────────────────────────
