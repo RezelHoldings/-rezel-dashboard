@@ -1106,10 +1106,7 @@
   function getPendingNotes() { return _pendingNotes; }
 
   function renderNotesLog(notes) {
-    _pendingNotes = Array.isArray(notes) ? [...notes]
-      : (notes && typeof notes === 'string' && notes.trim())
-        ? [{ text: notes, ts: null, author: '' }]  // legacy string note
-        : [];
+    _pendingNotes = parseNotes(notes);
     const el = document.getElementById('notesLog');
     if (!_pendingNotes.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
     el.style.display = 'block';
@@ -1132,12 +1129,27 @@
     renderNotesLog(_pendingNotes);
   }
 
+  function parseNotes(notes) {
+    if (!notes) return [];
+    if (Array.isArray(notes)) return notes;
+    if (typeof notes === 'string') {
+      // Try parsing as JSON array
+      try {
+        const parsed = JSON.parse(notes);
+        if (Array.isArray(parsed)) return parsed;
+      } catch(_) {}
+      // Plain string (legacy) — wrap as single entry
+      return notes.trim() ? [{ text: notes, ts: null, author: '' }] : [];
+    }
+    return [];
+  }
+
   function notesPreview(notes, full = false) {
-    if (!notes || !notes.length) return '';
-    if (typeof notes === 'string') return notes;
-    const last = notes[notes.length - 1];
+    const arr = parseNotes(notes);
+    if (!arr.length) return '';
+    const last = arr[arr.length - 1];
     return full
-      ? notes.map(n => `[${n.ts ? tsFull(n.ts) : ''}${n.author ? ' · ' + n.author : ''}] ${n.text}`).join('\n')
+      ? arr.map(n => `[${n.ts ? tsFull(n.ts) : ''}${n.author ? ' · ' + n.author : ''}] ${n.text}`).join('\n')
       : last.text;
   }
 
