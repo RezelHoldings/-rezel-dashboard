@@ -343,6 +343,7 @@
     <option value="Yelena Myulberg">Yelena Myulberg</option>
     <option value="Yi Zhang">Yi Zhang</option>
     <option value="Doug Renert">Doug Renert</option>
+    <option value="Kate">Kate</option>
   </select>
 
   <div class="bulk-spacer"></div>
@@ -409,6 +410,7 @@
           <option value="Yelena Myulberg">Yelena Myulberg</option>
           <option value="Yi Zhang">Yi Zhang</option>
           <option value="Doug Renert">Doug Renert</option>
+          <option value="Kate">Kate</option>
         </select>
       </div>
     </div>
@@ -511,6 +513,11 @@
   const MDN_SUBS = ['MDN','SM','BB'];
   const CO_SUBS  = ['CO','DS','PP','FN'];
   const ALL_BRANDS = [...MDN_SUBS, ...CO_SUBS];
+
+  // Restricted users — can only see their own tasks
+  const RESTRICTED_USERS = ['Kate'];
+  function currentUser() { return localStorage.getItem('rezel_username') || ''; }
+  function isRestricted() { return RESTRICTED_USERS.some(u => u.toLowerCase() === currentUser().toLowerCase()); }
 
   // ── API config ─────────────────────────────────────────────
   let API_URL = localStorage.getItem('rezel_api_url') || 'https://script.google.com/macros/s/AKfycbxjkTKZqb4SFsR9Zr5-hwq6wO7xT10HLQ6jXf7aPhThIJ09aja8AsxtnZYNemKNzt4zSQ/exec';
@@ -652,6 +659,7 @@
     return tasks
       .filter(t => {
         if (!allowed.includes(t.brand)) return false;
+        if (isRestricted() && (t.assignee||'').toLowerCase() !== currentUser().toLowerCase()) return false;
         if (!showDone && t.status==='done') return false;
         if (status!=='all' && t.status!==status) return false;
         if (pri!=='all' && t.priority!==pri) return false;
@@ -671,6 +679,11 @@
   // ── Render ─────────────────────────────────────────────────
   function render() {
     updateCounts(); updateAssigneeFilter(); updateBulkBar();
+    // Hide admin controls for restricted users
+    const restricted = isRestricted();
+    document.querySelector('.btn-primary[onclick="openModal()"]').style.display = restricted ? 'none' : '';
+    document.querySelector('.summary-bar').style.display = restricted ? 'none' : '';
+    document.querySelector('.bulk-bar')?.querySelectorAll('.bulk-btn-danger').forEach(b => b.style.display = restricted ? 'none' : '');
     const list = getFiltered();
     const tbody = document.getElementById('taskBody');
     document.getElementById('emptyState').style.display = list.length?'none':'block';
