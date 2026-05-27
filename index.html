@@ -681,7 +681,6 @@
     updateCounts(); updateAssigneeFilter(); updateBulkBar();
     // Hide admin controls for restricted users
     const restricted = isRestricted();
-    document.querySelector('.btn-primary[onclick="openModal()"]').style.display = restricted ? 'none' : '';
     document.querySelector('.summary-bar').style.display = restricted ? 'none' : '';
     document.querySelector('.bulk-bar')?.querySelectorAll('.bulk-btn-danger').forEach(b => b.style.display = restricted ? 'none' : '');
     const list = getFiltered();
@@ -898,7 +897,7 @@
     const def = ['MDN','SM','BB','CO','DS','PP','FN'].includes(activeBrand)?activeBrand:'MDN';
     document.getElementById('f-task').value='';
     document.getElementById('f-brand').value=def;
-    document.getElementById('f-assignee').value='';
+    document.getElementById('f-assignee').value= isRestricted() ? currentUser() : '';
     document.getElementById('f-due').value='';
     document.getElementById('f-priority').value='medium';
     document.getElementById('f-status').value='pending';
